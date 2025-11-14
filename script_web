@@ -1,0 +1,98 @@
+#!/bin/bash
+# ============================================================
+# Otavio Dalchiavon - RM 561566
+# Automação de Servidor Web (Apache)
+# Descrição: Automatiza a instalação e configuração # do servidor web no Linux (Debian)
+# ============================================================
+
+clear
+echo "==============================================================="
+echo "              Script de instalação de Servidor WEB              "
+echo "==============================================================="
+
+# -------------------- Confirmação Inicial --------------------
+read -p "Deseja realmente iniciar o processo? (s/n): " resp
+if [[ "$resp" != "s" ]]; then
+    erro "Instalação cancelada pelo usuário."
+    exit 1
+fi
+info "Iniciando instalação..."
+
+# -------------------- Ajustando reps ----------------
+info "Corrigindo sources.list..."
+sed -i 's/^deb cdrom/# &/' /etc/apt/sources.list
+
+cat <<EOF > /etc/apt/sources.list
+deb http://deb.debian.org/debian/ bookworm main contrib non-free non-free-firmware
+deb-src http://deb.debian.org/debian/ bookworm main contrib non-free non-free-firmware
+
+deb http://deb.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
+deb-src http://deb.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
+
+deb http://deb.debian.org/debian/ bookworm-updates main contrib non-free non-free-firmware
+deb-src http://deb.debian.org/debian/ bookworm-updates main contrib non-free non-free-firmware
+EOF
+ok "Repositórios configurados."
+
+# -------------------- Atualização do Sistema -----------------
+info "Atualizando lista de pacotes..."
+if apt update -y; then
+    ok "Pacotes atualizados."
+else
+    erro "Falha ao atualizar pacotes."
+    exit 1
+fi
+
+info "Atualizando sistema..."
+apt upgrade -y
+
+# ----------------- Instalação do apache2 e ferramentas --------
+info "Instalando Apache, unzip, wget e ufw..."
+if apt install -y apache2 unzip wget ufw; then
+    ok "Pacotes instalados com sucesso."
+else
+    erro "Erro ao instalar dependências."
+    exit 1
+fi
+
+# ------------------- Download do Template ---------------------
+TEMPLATE_URL="https://www.tooplate.com/zip-templates/2135_mini_finance.zip"
+info "Baixando template HTML..."
+if wget -O /tmp/template.zip "$TEMPLATE_URL"; then
+    ok "Download realizado."
+else
+    erro "Falha ao baixar template. Verifique conexão."
+    exit 1
+fi
+
+# ------------------- Extraindo os arquivos e deploy no diretório padrão ------------------------
+info "Extraindo arquivos..."
+mkdir -p /tmp/template
+unzip -o /tmp/template.zip -d /tmp/template >/dev/null
+
+info "Limpando diretório padrão do Apache..."
+rm -rf /var/www/html/*
+cp -r /tmp/template/* /var/www/html/
+
+# ------------------- Ajustando Permissões ---------------------
+info "Aplicando permissões..."
+chown -R www-data:www-data /var/www/html
+chmod -R 755 /var/www/html
+ok "Permissões ajustadas."
+
+# ------------------- Reiniciando o apache -----------------------
+info "Reiniciando serviço Apache..."
+systemctl restart apache2
+
+if systemctl is-active --quiet apache2; then
+    ok "Apache está rodando corretamente!"
+else
+    erro "Falha ao iniciar o Apache."
+    exit 1
+fi
+
+# ------------------- Finalização ------------------------------
+echo "==============================================================="
+ok "Instalação concluída com sucesso!"
+info "Acesse: http://localhost ou http://SEU_IP para visualizar o site."
+echo "==============================================================="
