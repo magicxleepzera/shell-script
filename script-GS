@@ -1,0 +1,59 @@
+#!/bin/bash
+# ==========================================
+# Otavio Dalchiavon RM: 561566
+# Descrição: Automatiza a instalação e configuração
+#            do servidor web no Linux (Debian)
+# ==========================================
+
+echo "================================================="
+echo "       Script de instalação de Servidor WEB       "
+echo "================================================="
+
+# corrigir repositórios com CD-ROM e adicionar oficiais
+echo "[INFO] Corrigindo sources.list..."
+sed -i 's/^deb cdrom/# &/' /etc/apt/sources.list
+
+cat <<EOF > /etc/apt/sources.list
+deb http://deb.debian.org/debian/ bookworm main contrib non-free non-free-firmware
+deb-src http://deb.debian.org/debian/ bookworm main contrib non-free non-free-firmware
+
+deb http://deb.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
+deb-src http://deb.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
+
+deb http://deb.debian.org/debian/ bookworm-updates main contrib non-free non-free-firmware
+deb-src http://deb.debian.org/debian/ bookworm-updates main contrib non-free non-free-firmware
+EOF
+
+# confirmação do usuário
+read -p "Deseja continuar a instalação? (s/n): " resp
+if [[ "$resp" != "s" ]]; then
+    echo "Instalação cancelada pelo usuário."
+    exit 1
+fi
+
+echo ">>> Atualizando pacotes..."
+apt update -y && apt upgrade -y
+
+echo ">>> Instalando servidor Apache..."
+apt install -y apache2 unzip wget ufw
+
+echo ">>> Baixando template HTML..."
+wget -O /tmp/template.zip https://www.tooplate.com/zip-templates/2135_mini_finance.zip
+
+echo ">>> Extraindo e copiando arquivos..."
+mkdir -p /tmp/template
+unzip -o /tmp/template.zip -d /tmp/template
+rm -rf /var/www/html/*
+cp -r /tmp/template/* /var/www/html/
+
+echo ">>> Ajustando permissões..."
+chown -R www-data:www-data /var/www/html
+chmod -R 755 /var/www/html
+
+echo ">>> Reiniciando serviço Apache..."
+systemctl restart apache2
+
+echo "================================================="
+echo "Instalação concluída com sucesso!"
+echo "Acesse: http://localhost para ver o resultado."
+echo "================================================="
